@@ -36,9 +36,6 @@ __author__  = "Mauricio Galetto "
 __license__ = "Apache License, Version 2.0"
 
 
-
-SETPOINT_MAX = 999.9
-
 CONTROL_MODES = {
 			0: 'PID', 
 			1: 'ON/OFF',
@@ -84,26 +81,26 @@ ALARMS_TYPES = {
 }
 
 STATUS = {
-		0: 'Normal operation (No error)',
-		1: 'Initial process',
-		2: 'Initial status (Temperature is not stable)',
-		3: 'Temperature sensor is not connected',
-		4: 'Temperature sensor input error',
-		5: 'Measured temperature value exceeds the temperature range',
-		6: 'No Int. error',
-		7: 'EEPROM Error'
+			0: 'Normal operation (No error)',
+			1: 'Initial process',
+			2: 'Initial status (Temperature is not stable)',
+			3: 'Temperature sensor is not connected',
+			4: 'Temperature sensor input error',
+			5: 'Measured temperature value exceeds the temperature range',
+			6: 'No Int. error',
+			7: 'EEPROM Error'
 }
 
 #WARNING, Not in Docs, From Snifer
 LOCK_STATUS_SET = { 
 			0: 'Normal', 
-			1: "Lock All", 
-			11:"Not SV"
+			1: 'Lock All', 
+			11:'Not SV'
 }
-LOCK_STATUS_READ = {
-			0: 'Normal',
-			2: "Lock All",
-			22:"Not SV"
+LOCK_STATUS_READ = { 
+			0: 'Normal', 
+			2: 'Lock All', 
+			22:'Not SV'
 }
 """
 Sets				->	Gets (:01034731 0001 83)
@@ -178,7 +175,7 @@ if (ret>4){
 """
 
 """Description of the control mode numerical values."""
-REGISTER_START = {	
+REGISTER_START = {
 			'process_value':	0x4700,
 			'set_point':	0x4701,
 			'upper_limit_alarm_1':	0x4702,
@@ -214,7 +211,7 @@ REGISTER_START = {
 
 #read_register(registeraddress, numberOfDecimals=0, functioncode=3, signed=False):		
 #numberOfDecimals	functioncode	signed
-#numberOfDecimals, functioncode, signed
+#numberOfDecimals, functioncode,signed
 REGISTER_READ_DETAIL = {
 			'process_value': [1, 3, 1],
 			'set_point': [1, 3, 1],
@@ -245,13 +242,13 @@ REGISTER_READ_DETAIL = {
 			'lock_status': [0, 3, 0],
 			'i_offset': [0, 3, 0],
 			'output': [0, 3, 0],
-			'control_output':[0, 3, 0],
-			'leds':[0, 3, 0]
+			'control_output': [0, 3, 0],
+			'leds': [0, 3, 0]
 }
 
 #write_register(registeraddress, value, numberOfDecimals=0, functioncode=16, signed=False)
 #tipo, numberOfDecimals, functioncode,signed, min, max
-REGISTER_WRITE_DETAIL = {	
+REGISTER_WRITE_DETAIL = {
 			'set_point': ["int", 1, 6, 1, -273, 999],
 			'upper_limit_alarm_1': ["int", 1, 6, 1, -999, 999],
 			'lower_limit_alarm_1': ["int", 1, 6, 1, -999, 999],
@@ -348,8 +345,8 @@ REGISTER_DETAILS = {
 			'lock_status': '',
 			'i_offset': '',
 			'output': '',
-			'control_output':'',
-			'leds':''
+			'control_output': '',
+			'leds': ''
 }
 
 
@@ -390,9 +387,8 @@ class Love8C( minimalmodbus.Instrument ):
 		self.serial.bytesize = 7
 		self.serial.parity = minimalmodbus.serial.PARITY_EVEN
 		self.serial.stopbits = 1
-		self.serial.timeout  = 10
+		self.serial.timeout  = 0.5
 		#self.debug = True
-		self.setpoint_max = SETPOINT_MAX
 	
 	def get_register(self, name):
 		signed = False
@@ -476,18 +472,25 @@ if __name__ == '__main__':
 	parser.add_argument('-address', metavar='deviceNro', nargs=1, type=int, help='Device address for RS485, Example: 1')
 	parser.add_argument("-j", "--json", action="count", default=0, help='Encode out to json')
 	parser.add_argument("-t", "--test", action="count", default=0)
+	parser.add_argument("-e", "--emu", action="count", default=0)
+	
+	
 	args = parser.parse_args()
 	
 	if (args.port == None):
 		data = {}
 		data["ports"] = serial_ports()
 		if (args.json):
+			if (args.emu):
+				minimalmodbus._print_out("{\"ports\":[\"COM99\"]}")
+				exit()
 			json_data = json.dumps(data)
 			minimalmodbus._print_out(json_data)
 		else:
 			minimalmodbus._print_out("Need set the port, Ex: -port COM3")
 			minimalmodbus._print_out("Avaible:")
-			print(data["ports"])
+			ports_data = json.dumps(data["ports"])
+			minimalmodbus._print_out(ports_data)
 		exit()
 	if (args.address == None):
 		minimalmodbus._print_out("Need set the address, Ex: -address 1")
@@ -497,50 +500,91 @@ if __name__ == '__main__':
 	#PORTNAME = '/dev/ttyUSB0'
 	ADDRESS = args.address[0]
 	
-	if (args.set):
-		name = args.set[0]
-		if (args.set_value):
-			setval = args.set_value[0]
+	try:
+		if (args.set):
+			name = args.set[0]
+			if (args.set_value):
+				if (args.emu):
+					exit()
+				setval = args.set_value[0]
+				instr = Love8C(PORTNAME, ADDRESS)
+				instr.set_register(name, setval)
+				instr.serial.close()
+			else:
+				minimalmodbus._print_out("Need set the value with -set_value")
+		
+		if (args.get):
+			data = {}
+			if (args.emu):
+				emu = '{"i_offset":0,"output":0, "control_output": 0,"process_value": 17.4, "upper_limit_alarm_1": 2.0, "temperature_unit_display_selection": 1, "at_setting": 0, "heating_cooling_hysteresis": 0.1, "alarm_2_type": 1, "temperature_regulation_value": 0.0, "ti_integral_time": 10, "alarm_1_type": 1, "lower_limit_alarm_2": 3.0, "lower_limit_alarm_1": 2.0, "control_method": 1, "td_derivative_time": 41, "status": 0, "lower_limit_of_temperature_range": -20.0, "software_version": 1056, "upper_limit_of_temperature_range": 500.0, "communication_write_in_selection": 1, "heating_cooling_control_cycle": 22, "heating_cooling_control_selection": 1, "control_run_stop_setting": 0, "set_point": 18.5, "proportional_control_offset_error_value": 0.0, "upper_limit_alarm_2": 3.0, "input_temperature_sensor_type": 14, "pb_proportional_band": 2.0, "leds": 84,"lock_status":0}'
+				if (ADDRESS==2):
+					emu = '{"i_offset":0,"output":0, "control_output": 0,"process_value": 1.4, "upper_limit_alarm_1": 2.0, "temperature_unit_display_selection": 1, "at_setting": 0, "heating_cooling_hysteresis": 0.1, "alarm_2_type": 1, "temperature_regulation_value": 0.0, "ti_integral_time": 10, "alarm_1_type": 1, "lower_limit_alarm_2": 3.0, "lower_limit_alarm_1": 2.0, "control_method": 1, "td_derivative_time": 41, "status": 0, "lower_limit_of_temperature_range": -20.0, "software_version": 1056, "upper_limit_of_temperature_range": 500.0, "communication_write_in_selection": 1, "heating_cooling_control_cycle": 22, "heating_cooling_control_selection": 1, "control_run_stop_setting": 1, "set_point": 1.5, "proportional_control_offset_error_value": 0.0, "upper_limit_alarm_2": 3.0, "input_temperature_sensor_type": 14, "pb_proportional_band": 2.0, "leds": 84,"lock_status":0}'
+				if (args.get[0] == "all"):
+					minimalmodbus._print_out(emu)
+					exit()			
+				fake_data = json.loads(emu)
+				names = [x.strip() for x in args.get[0].split(",")] #obtengo array de props sin espacios
+				for propName in names:
+					data[propName] = 'N/D'
+					if (propName in fake_data):
+						data[propName] = fake_data[propName]
+					else:
+						minimalmodbus._print_out("No " + propName )
+					if (args.json == 0):
+						minimalmodbus._print_out(propName + ":" + str(data[propName]))
+				if (args.json):
+					json_data = json.dumps(data)
+					minimalmodbus._print_out(json_data)
+				exit()
+			
 			instr = Love8C(PORTNAME, ADDRESS)
-			instr.set_register(name, setval)
+			if (args.get[0] == "all"):
+				for name in REGISTER_READ_DETAIL:
+					data[name] = instr.get_register(name)
+				if (args.json == 0):
+					minimalmodbus._print_out( str(REGISTER_LABELS[name]) + ': ' + str(data[name]))
+			else:
+				names = [x.strip() for x in args.get[0].split(",")] #obtengo array de props sin espacios
+				for propName in names:
+					data[propName] = instr.get_register(propName)
+					if (args.json == 0):
+						minimalmodbus._print_out(propName + ":" + str(data[propName]))
 			instr.serial.close()
-		else:
-			minimalmodbus._print_out("Need set the value with -set_value")
-	
-	if (args.get):
-		#emu = '{"process_value": 17.4, "upper_limit_alarm_1": 2.0, "temperature_unit_display_selection": 1, "at_setting": 0, "heating_cooling_hysteresis": 0.1, "alarm_2_type": 1, "temperature_regulation_value": 0.0, "ti_integral_time": 10, "alarm_1_type": 1, "lower_limit_alarm_2": 3.0, "lower_limit_alarm_1": 2.0, "control_method": 1, "td_derivative_time": 41, "status": 0, "lower_limit_of_temperature_range": -20.0, "software_version": 1056, "upper_limit_of_temperature_range": 500.0, "communication_write_in_selection": 1, "heating_cooling_control_cycle": 22, "heating_cooling_control_selection": 1, "control_run_stop_setting": 1, "set_point": 18.5, "proportional_control_offset_error_value": 0.0, "upper_limit_alarm_2": 3.0, "input_temperature_sensor_type": 14, "pb_proportional_band": 2.0, "leds": 84,"lock_status":0}'
-		#minimalmodbus._print_out(emu)
-		#exit()
-		instr = Love8C(PORTNAME, ADDRESS)
-		data = {}
-		if (args.get[0] == "all"):
+			if (args.json):
+				json_data = json.dumps(data)
+				minimalmodbus._print_out(json_data)
+		
+		if (args.test):
+			minimalmodbus._print_out('TESTING LOVE 8C MODBUS MODULE')
+			minimalmodbus._print_out( 'Port: ' +  str(PORTNAME) + ', Address: ' + str(ADDRESS) )
+			instr = Love8C(PORTNAME, ADDRESS)
+			
+			data = {}
+			#json_data = json.dumps(data)
 			for name in REGISTER_READ_DETAIL:
 				data[name] = instr.get_register(name)
-			if (args.json == 0):
 				minimalmodbus._print_out( str(REGISTER_LABELS[name]) + ': ' + str(data[name]))
-		else:
-			names = [x.strip() for x in args.get[0].split(",")] #obtengo array de props sin espacios
-			for propName in names:
-				data[propName] = instr.get_register(propName)
-				if (args.json == 0):
-					minimalmodbus._print_out(propName + ":" + str(data[propName]))
-		instr.serial.close()
-		if (args.json):
-			json_data = json.dumps(data)
-			minimalmodbus._print_out(json_data)
-	
-	if (args.test):
-		minimalmodbus._print_out('TESTING LOVE 8C MODBUS MODULE')
-		minimalmodbus._print_out( 'Port: ' +  str(PORTNAME) + ', Address: ' + str(ADDRESS) )
-		instr = Love8C(PORTNAME, ADDRESS)
-		
+			minimalmodbus._print_out('DONE!')
+			instr.serial.close()
+	except (OSError, serial.SerialException) as ex:
 		data = {}
-		#json_data = json.dumps(data)
-		for name in REGISTER_READ_DETAIL:
-			data[name] = instr.get_register(name)
-			minimalmodbus._print_out( str(REGISTER_LABELS[name]) + ': ' + str(data[name]))
-		minimalmodbus._print_out('DONE!')
-		instr.serial.close()
+		data["error"] = "port"
+		data["msg"] = ex.__str__()
+		errcode = 0
+		if "WindowsError(2," in data["msg"]:
+			errcode = 2 #No existe el puerto
+		if "WindowsError(5," in data["msg"]:
+			errcode = 5 #En uso
+		data["code"] = errcode
+		json_data = json.dumps(data)
+		minimalmodbus._print_out(json_data)
+	except Exception as e:
+		data = {}
+		data["error"] = "unknow"
+		data["code"] = 0
+		data["msg"] = e.__str__()
+		json_data = json.dumps(data)
+		minimalmodbus._print_out(json_data)
 
 pass
 """
