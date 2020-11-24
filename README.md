@@ -28,6 +28,12 @@ cation_write_in_selection": 1, "heating_cooling_control_cycle": 22, "heating_coo
 roportional_control_offset_error_value": 0.0, "upper_limit_alarm_2": 3.0, "input_temperature_sensor_type": 14, "pb_proportional_band": 2.0}
 ```
 
+## Set Point Example for Device 1 on port COM3:
+> love8c.py -set set_point -set_value 8.5 -port COM3 -addres 1
+
+## Stop Device 1 on port COM3:
+> love8c.py -set control_run_stop_setting -set_value 0 -port COM3 -addres 1
+
 # Default serial controller settings
 ```
 baudrate = 9600
